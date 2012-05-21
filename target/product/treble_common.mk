@@ -34,11 +34,6 @@ PRODUCT_FULL_TREBLE_OVERRIDE := true
 PRODUCT_PACKAGES += \
     messaging
 
-# Telephony:
-#   Provide a default APN configuration
-PRODUCT_COPY_FILES += \
-    device/sample/etc/apns-full-conf.xml:system/etc/apns-conf.xml
-
 # NFC:
 #   Provide default libnfc-nci.conf file for devices that does not have one in
 #   vendor/etc
