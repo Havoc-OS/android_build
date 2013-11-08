@@ -28,7 +28,6 @@ product_copy_files_ignored :=
 $(foreach cf,$(unique_product_copy_files_pairs), \
     $(eval _src := $(call word-colon,1,$(cf))) \
     $(eval _dest := $(call word-colon,2,$(cf))) \
-    $(call check-product-copy-files,$(cf),$(_dest)) \
     $(if $(filter $(unique_product_copy_files_destinations),$(_dest)), \
         $(eval product_copy_files_ignored += $(cf)), \
         $(eval _fulldest := $(call append-path,$(PRODUCT_OUT),$(_dest))) \
