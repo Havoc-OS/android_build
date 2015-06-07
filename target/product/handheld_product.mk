@@ -27,7 +27,6 @@ PRODUCT_PACKAGES += \
     Contacts \
     DeskClock \
     Gallery2 \
-    LatinIME \
     Launcher3QuickStep \
     OneTimeInitializer \
     Provision \
@@ -37,6 +36,11 @@ PRODUCT_PACKAGES += \
     SystemUI \
     WallpaperCropper \
     frameworks-base-overlays
+
+ifeq ($(HAVOC_BUILD),)
+PRODUCT_PACKAGES += \
+    LatinIME
+endif
 
 PRODUCT_PACKAGES_DEBUG += \
     frameworks-base-overlays-debug
