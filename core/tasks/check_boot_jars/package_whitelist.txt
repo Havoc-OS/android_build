@@ -122,6 +122,8 @@ com\.android\..*
 # CAF
 org\.codeaurora\..*
 
+#AliPay
+org\.ifaa\.android\.manager
 
 ###################################################
 # android.test.base.jar
