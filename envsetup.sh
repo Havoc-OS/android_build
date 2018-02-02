@@ -1741,4 +1741,5 @@ addcompletions
 
 export ANDROID_BUILD_TOP=$(gettop)
 
-. $ANDROID_BUILD_TOP/vendor/havoc/build/envsetup.sh
+. vendor/havoc/tools/havoc_variant.sh && . vendor/havoc/build/envsetup.sh
+
