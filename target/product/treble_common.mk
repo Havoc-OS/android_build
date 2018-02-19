@@ -43,7 +43,7 @@ PRODUCT_COPY_FILES += \
 #   Provide default libnfc-nci.conf file for devices that does not have one in
 #   vendor/etc
 PRODUCT_COPY_FILES += \
-    device/generic/common/nfc/libnfc-nci.conf:system/etc/libnfc-nci.conf
+    build/make/target/product/nfc/libnfc-nci.conf:system/etc/libnfc-nci.conf
 
 # Support for the O-MR1 devices
 PRODUCT_COPY_FILES += \
