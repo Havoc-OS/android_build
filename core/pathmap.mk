@@ -93,4 +93,4 @@ FRAMEWORKS_BASE_SUBDIRS := \
 FRAMEWORKS_BASE_JAVA_SRC_DIRS := \
 	$(addprefix frameworks/base/,$(FRAMEWORKS_BASE_SUBDIRS))
 
--include $(TOPDIR)vendor/lineage/build/core/pathmap.mk
+-include $(TOPDIR)vendor/havoc/build/core/pathmap.mk

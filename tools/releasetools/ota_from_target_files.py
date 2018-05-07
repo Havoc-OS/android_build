@@ -599,7 +599,8 @@ def GetBuildProp(prop, info_dict):
   try:
     return info_dict.get("build.prop", {})[prop]
   except KeyError:
-    raise common.ExternalError("couldn't find %s in build.prop" % (prop,))
+    print ("WARNING: could not find %s in build.prop" % (prop,))
+    return None
 
 
 def HandleDowngradeMetadata(metadata):

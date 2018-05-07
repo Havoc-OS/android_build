@@ -436,8 +436,8 @@ LOCAL_CUSTOM_BUILD_STEP_INPUT:=
 LOCAL_CUSTOM_BUILD_STEP_OUTPUT:=
 LOCAL_IS_AUX_MODULE :=
 
-# Include lineage specific clear_vars.mk file
--include $(TOPDIR)vendor/lineage/build/core/clear_vars.mk
+# Include havoc specific clear_vars.mk file
+-include $(TOPDIR)vendor/havoc/build/core/clear_vars.mk
 
 # Trim MAKEFILE_LIST so that $(call my-dir) doesn't need to
 # iterate over thousands of entries every time.

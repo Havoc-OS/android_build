@@ -189,7 +189,7 @@ $(call project-set-path-variant,recovery,RECOVERY_VARIANT,bootable/recovery)
 $(call project-set-path-variant,ril,TARGET_RIL_VARIANT,hardware/ril)
 
 -include vendor/extra/BoardConfigExtra.mk
--include vendor/lineage/config/BoardConfigLineage.mk
+-include vendor/havoc/configs/BoardConfig.mk
 
 # The build system exposes several variables for where to find the kernel
 # headers:
@@ -975,10 +975,10 @@ include $(BUILD_SYSTEM)/ninja_config.mk
 include $(BUILD_SYSTEM)/soong_config.mk
 endif
 
-ifneq ($(LINEAGE_BUILD),)
+ifneq ($(HAVOC_BUILD),)
 ## We need to be sure the global selinux policies are included
 ## last, to avoid accidental resetting by device configs
-$(eval include device/lineage/sepolicy/common/sepolicy.mk)
+$(eval include device/havoc/sepolicy/common/sepolicy.mk)
 
 # Include any vendor specific config.mk file
 -include $(TOPDIR)vendor/*/build/core/config.mk
@@ -987,10 +987,10 @@ $(eval include device/lineage/sepolicy/common/sepolicy.mk)
 -include $(TOPDIR)vendor/*/build/core/apicheck.mk
 
 # Rules for QCOM targets
--include $(TOPDIR)vendor/lineage/build/core/qcom_target.mk
+-include $(TOPDIR)vendor/havoc/build/core/qcom_target.mk
 
 # Rules for MTK targets
--include $(TOPDIR)vendor/lineage/build/core/mtk_target.mk
+-include $(TOPDIR)vendor/havoc/build/core/mtk_target.mk
 endif
 
 include $(BUILD_SYSTEM)/dumpvar.mk

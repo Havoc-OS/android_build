@@ -23,7 +23,7 @@ Invoke ". build/envsetup.sh" from your shell to add the following functions to y
 
 EOF
 
-    __print_lineage_functions_help
+    __print_havoc_functions_help
 
 cat <<EOF
 
@@ -37,7 +37,7 @@ EOF
     local T=$(gettop)
     local A=""
     local i
-    for i in `cat $T/build/envsetup.sh $T/vendor/lineage/build/envsetup.sh | sed -n "/^[[:blank:]]*function /s/function \([a-z_]*\).*/\1/p" | sort | uniq`; do
+    for i in `cat $T/build/envsetup.sh $T/vendor/havoc/build/envsetup.sh | sed -n "/^[[:blank:]]*function /s/function \([a-z_]*\).*/\1/p" | sort | uniq`; do
       A="$A $i"
     done
     echo $A
@@ -48,8 +48,8 @@ function build_build_var_cache()
 {
     local T=$(gettop)
     # Grep out the variable names from the script.
-    cached_vars=`cat $T/build/envsetup.sh $T/vendor/lineage/build/envsetup.sh | tr '()' '  ' | awk '{for(i=1;i<=NF;i++) if($i~/get_build_var/) print $(i+1)}' | sort -u | tr '\n' ' '`
-    cached_abs_vars=`cat $T/build/envsetup.sh $T/vendor/lineage/build/envsetup.sh | tr '()' '  ' | awk '{for(i=1;i<=NF;i++) if($i~/get_abs_build_var/) print $(i+1)}' | sort -u | tr '\n' ' '`
+    cached_vars=`cat $T/build/envsetup.sh $T/vendor/havoc/build/envsetup.sh | tr '()' '  ' | awk '{for(i=1;i<=NF;i++) if($i~/get_build_var/) print $(i+1)}' | sort -u | tr '\n' ' '`
+    cached_abs_vars=`cat $T/build/envsetup.sh $T/vendor/havoc/build/envsetup.sh | tr '()' '  ' | awk '{for(i=1;i<=NF;i++) if($i~/get_abs_build_var/) print $(i+1)}' | sort -u | tr '\n' ' '`
     # Call the build system to dump the "<val>=<value>" pairs as a shell script.
     build_dicts_script=`\cd $T; CALLED_FROM_SETUP=true BUILD_SYSTEM=build/core \
                         command make --no-print-directory -f build/core/config.mk \
@@ -135,13 +135,13 @@ function check_product()
         echo "Couldn't locate the top of the tree.  Try setting TOP." >&2
         return
     fi
-    if (echo -n $1 | grep -q -e "^lineage_") ; then
-        LINEAGE_BUILD=$(echo -n $1 | sed -e 's/^lineage_//g')
-        export BUILD_NUMBER=$( (date +%s%N ; echo $LINEAGE_BUILD; hostname) | openssl sha1 | sed -e 's/.*=//g; s/ //g' | cut -c1-10 )
+    if (echo -n $1 | grep -q -e "^havoc_") ; then
+        HAVOC_BUILD=$(echo -n $1 | sed -e 's/^havoc_//g')
+        export BUILD_NUMBER=$( (date +%s%N ; echo $HAVOC_BUILD; hostname) | openssl sha1 | sed -e 's/.*=//g; s/ //g' | cut -c1-10 )
     else
-        LINEAGE_BUILD=
+        HAVOC_BUILD=
     fi
-    export LINEAGE_BUILD
+    export HAVOC_BUILD
 
         TARGET_PRODUCT=$1 \
         TARGET_BUILD_VARIANT= \
@@ -548,14 +548,6 @@ function add_lunch_combo()
     LUNCH_MENU_CHOICES=(${LUNCH_MENU_CHOICES[@]} $new_combo)
 }
 
-# add the default one here
-add_lunch_combo aosp_arm-eng
-add_lunch_combo aosp_arm64-eng
-add_lunch_combo aosp_mips-eng
-add_lunch_combo aosp_mips64-eng
-add_lunch_combo aosp_x86-eng
-add_lunch_combo aosp_x86_64-eng
-
 function print_lunch_menu()
 {
     local uname=$(uname)
@@ -583,7 +575,7 @@ function lunch()
         answer=$1
     else
         print_lunch_menu
-        echo -n "Which would you like? [aosp_arm-eng] "
+        echo -n "Which would you like? [full-eng] "
         read answer
     fi
 
@@ -591,7 +583,7 @@ function lunch()
 
     if [ -z "$answer" ]
     then
-        selection=aosp_arm-eng
+        selection=full-eng
     elif (echo -n $answer | grep -q -e "^[0-9][0-9]*$")
     then
         if [ $answer -le ${#LUNCH_MENU_CHOICES[@]} ]
@@ -625,16 +617,16 @@ function lunch()
     check_product $product
     if [ $? -ne 0 ]
     then
-        # if we can't find a product, try to grab it off the LineageOS GitHub
+        # if we can't find a product, try to grab it off the Havoc GitHub
         T=$(gettop)
         cd $T > /dev/null
-        vendor/lineage/build/tools/roomservice.py $product
+        vendor/havoc/build/tools/roomservice.py ${product#*_}
         cd - > /dev/null
         check_product $product
     else
         T=$(gettop)
         cd $T > /dev/null
-        vendor/lineage/build/tools/roomservice.py $product true
+        vendor/havoc/build/tools/roomservice.py -d ${product#*_}
         cd - > /dev/null
     fi
 
@@ -1600,7 +1592,7 @@ function set_java_home() {
                 export JAVA_HOME=$(/usr/libexec/java_home -v 1.7)
                 ;;
             *)
-                export JAVA_HOME=/usr/lib/jvm/java-7-openjdk-amd64
+                export JAVA_HOME=$(dirname $(dirname $(dirname $(readlink -f $(which java)))))
                 ;;
         esac
       else
@@ -1609,7 +1601,7 @@ function set_java_home() {
                 export JAVA_HOME=$(/usr/libexec/java_home -v 1.8)
                 ;;
             *)
-                export JAVA_HOME=/usr/lib/jvm/java-8-openjdk-amd64
+                export JAVA_HOME=$(dirname $(dirname $(dirname $(readlink -f $(which java)))))
                 ;;
         esac
       fi
@@ -1749,4 +1741,4 @@ addcompletions
 
 export ANDROID_BUILD_TOP=$(gettop)
 
-. $ANDROID_BUILD_TOP/vendor/lineage/build/envsetup.sh
+. $ANDROID_BUILD_TOP/vendor/havoc/build/envsetup.sh

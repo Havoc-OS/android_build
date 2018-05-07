@@ -128,7 +128,6 @@ else
   endif
 endif
 
-
 # Bring in standard build system definitions.
 include $(BUILD_SYSTEM)/definitions.mk
 
