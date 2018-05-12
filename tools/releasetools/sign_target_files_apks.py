@@ -277,6 +277,7 @@ def ProcessTargetFiles(input_tf_zip, output_tf_zip, misc_info,
 
     # System properties.
     elif info.filename in ("SYSTEM/build.prop",
+                           "SYSTEM/vendor/build.prop",
                            "VENDOR/build.prop",
                            "SYSTEM/etc/prop.default",
                            "BOOT/RAMDISK/prop.default",
