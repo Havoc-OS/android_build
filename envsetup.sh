@@ -145,8 +145,6 @@ function check_product()
     fi
     export HAVOC_BUILD
 
-    export USE_D8_DESUGAR=true
-
         TARGET_PRODUCT=$1 \
         TARGET_BUILD_VARIANT= \
         TARGET_BUILD_TYPE= \
