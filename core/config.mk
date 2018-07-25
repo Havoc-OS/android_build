@@ -566,9 +566,6 @@ endif
 
 USE_PREBUILT_SDK_TOOLS_IN_PLACE := true
 
-# Enable r8
-USE_R8 := true
-
 #
 # Tools that are prebuilts for TARGET_BUILD_APPS
 #

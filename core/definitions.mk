@@ -2778,22 +2778,6 @@ $(2): $(1) $(HIDDENAPI) $(SOONG_ZIP) $(MERGE_ZIPS) $(INTERNAL_PLATFORM_HIDDENAPI
 		$(2) $${PRIVATE_FOLDER}/classes.dex.jar $(1)
 endef
 
-###########################################################
-## Commands to call Proguard
-###########################################################
-ifdef TARGET_OPENJDK9
-define transform-jar-to-proguard
-@echo Skipping Proguard: $< $@
-$(hide) cp '$<' $@
-endef
-else
-define transform-jar-to-proguard
-@echo Proguard: $@
-$(hide) $(PROGUARD) -injars $< -outjars $@ $(PRIVATE_PROGUARD_FLAGS) \
-    $(addprefix -injars , $(PRIVATE_EXTRA_INPUT_JAR))
-endef
-endif
-
 
 ###########################################################
 ## Commands to call R8
