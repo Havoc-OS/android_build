@@ -566,16 +566,11 @@ endif
 
 USE_PREBUILT_SDK_TOOLS_IN_PLACE := true
 
-# Work around for b/68406220
-# This should match the soong version.
-ifndef USE_D8
-  USE_D8 := true
-endif
+# Enable d8
+USE_D8 := true
 
-# Default R8 behavior when USE_R8 is not specified.
-ifndef USE_R8
-  USE_R8 := false
-endif
+# Enable r8
+USE_R8 := true
 
 #
 # Tools that are prebuilts for TARGET_BUILD_APPS
