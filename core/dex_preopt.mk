@@ -52,7 +52,7 @@ ifeq ($(HOST_OS),linux)
   ifeq (,$(filter eng, $(TARGET_BUILD_VARIANT)))
     ifneq (true,$(WITH_DEXPREOPT))
       ifneq (true,$(WITH_DEXPREOPT_BOOT_IMG_AND_SYSTEM_SERVER_ONLY))
-        $(call pretty-error, DEXPREOPT must be enabled for user and userdebug builds)
+        $(warning "DEXPREOPT must be enabled for user and userdebug builds")
       endif
     endif
   endif
