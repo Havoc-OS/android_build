@@ -822,6 +822,33 @@ else if get_stage("%(bcb_dev)s") == "3/3" then
   # Dump fingerprints
   script.Print("Target: {}".format(target_info.fingerprint))
 
+  manufacturer = target_info.GetBuildProp("ro.product.manufacturer")
+  build = target_info.GetBuildProp("ro.build.date")
+  android_version = target_info.GetBuildProp("ro.build.version.release")
+  build_id = target_info.GetBuildProp("ro.build.id")
+  security_patch = target_info.GetBuildProp("ro.build.version.security_patch")
+  device = target_info.GetBuildProp("ro.product.device")
+
+  script.Print("*****************************************************");
+  script.Print("                                                     ");
+  script.Print("         dMP dMP .aMMMb  dMP dMP .aMMMb  .aMMMb      ");
+  script.Print("        dMP dMP dMP'dMP dMP dMP dMP'dMP dMP'VMP      ");
+  script.Print("       dMMMMMP dMMMMMP dMP dMP dMP dMP dMP           ");
+  script.Print("      dMP dMP dMP dMP  YMvAP' cMP.aMP dMP.aMP        ");
+  script.Print("     dMP dMP dMP dMP    VP'   VMMMP'  VMMMP'         ");
+  script.Print("                                                     ");
+  script.Print("*****************************************************");
+  script.Print("**************** Welcome to Havoc-OS ****************");
+  script.Print("*****************************************************");
+  script.Print(" Android Version : %s"%(android_version));
+  script.Print(" Build ID        : %s"%(build_id));
+  script.Print(" Build Date      : %s"%(build));
+  script.Print(" Security Patch  : %s"%(security_patch));
+  script.Print(" Device          : %s"%(device));
+  script.Print(" Manufacturer    : %s"%(manufacturer));
+  script.Print("*****************************************************");
+  script.Print("*****************************************************");
+
   device_specific.FullOTA_InstallBegin()
 
   CopyInstallTools(output_zip)
