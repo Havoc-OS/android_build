@@ -74,16 +74,9 @@ PRODUCT_PROPERTY_OVERRIDES += \
     ro.dalvik.vm.native.bridge=0
 
 # Different dexopt types for different package update/install times.
-# On eng builds, make "boot" reasons only extract for faster turnaround.
-ifeq (eng,$(TARGET_BUILD_VARIANT))
-    PRODUCT_SYSTEM_DEFAULT_PROPERTIES += \
-        pm.dexopt.first-boot=extract \
-        pm.dexopt.boot=extract
-else
-    PRODUCT_SYSTEM_DEFAULT_PROPERTIES += \
-        pm.dexopt.first-boot=quicken \
-        pm.dexopt.boot=verify
-endif
+PRODUCT_SYSTEM_DEFAULT_PROPERTIES += \
+    pm.dexopt.first-boot=quicken \
+    pm.dexopt.boot=verify
 
 # The install filter is speed-profile in order to enable the use of
 # profiles from the dex metadata files. Note that if a profile is not provided
