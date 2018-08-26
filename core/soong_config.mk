@@ -109,6 +109,12 @@ $(call add_json_bool, NativeCoverage,                    $(filter true,$(NATIVE_
 $(call add_json_list, CoveragePaths,                     $(COVERAGE_PATHS))
 $(call add_json_list, CoverageExcludePaths,              $(COVERAGE_EXCLUDE_PATHS))
 
+ifeq ($(TARGET_ADDITIONAL_GRALLOC_10_USAGE_BITS),)
+  $(call add_json_str, Additional_gralloc_10_usage_bits, 0)
+else
+  $(call add_json_str, Additional_gralloc_10_usage_bits, $(TARGET_ADDITIONAL_GRALLOC_10_USAGE_BITS))
+endif
+
 $(call add_json_bool, ArtUseReadBarrier,                 $(call invert_bool,$(filter false,$(PRODUCT_ART_USE_READ_BARRIER))))
 $(call add_json_bool, Binder32bit,                       $(BINDER32BIT))
 $(call add_json_bool, Brillo,                            $(BRILLO))
