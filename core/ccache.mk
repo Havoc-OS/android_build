@@ -41,7 +41,7 @@ ifneq ($(filter-out false,$(USE_CCACHE)),)
 
   ifeq ($(ccache),)
     CCACHE_HOST_TAG := $(HOST_PREBUILT_TAG)
-    ccache := prebuilts/misc/$(CCACHE_HOST_TAG)/ccache/ccache
+    ccache := prebuilts/build-tools/$(CCACHE_HOST_TAG)/bin/ccache
   endif
 
   # Check that the executable is here.
