@@ -895,8 +895,6 @@ else if get_stage("%(bcb_dev)s") == "3/3" then
     vendor_diff = common.BlockDifference("vendor", vendor_tgt)
     vendor_diff.WriteScript(script, output_zip)
 
-  AddCompatibilityArchiveIfTrebleEnabled(input_zip, output_zip, target_info)
-
   common.CheckSize(boot_img.data, "boot.img", target_info)
   common.ZipWriteStr(output_zip, "boot.img", boot_img.data)
 
@@ -1488,9 +1486,6 @@ def WriteBlockIncrementalOTAPackage(target_zip, source_zip, output_file):
   else:
     vendor_diff = None
 
-  AddCompatibilityArchiveIfTrebleEnabled(
-      target_zip, output_zip, target_info, source_info)
-
   # Assertions (e.g. device properties check).
   target_info.WriteDeviceAssertions(script, OPTIONS.oem_no_mount)
   device_specific.IncrementalOTA_Assertions()
@@ -1825,9 +1820,6 @@ def WriteABOTAPackageWithBrilloScript(target_file, output_file,
                          compress_type=zipfile.ZIP_STORED)
     else:
       print("Warning: cannot find care map file in target_file package")
-
-  AddCompatibilityArchiveIfTrebleEnabled(
-      target_zip, output_zip, target_info, source_info)
 
   common.ZipClose(target_zip)
 
