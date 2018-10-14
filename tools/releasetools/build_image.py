@@ -713,7 +713,6 @@ def ImagePropFromGlobalDict(glob_dict, mount_point):
       "verity_fec",
       "verity_disable",
       "avb_enable",
-      "avb_disabled_vbmeta",
       "avb_avbtool",
       "avb_salt",
   )
