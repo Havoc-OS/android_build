@@ -75,7 +75,7 @@ PRODUCT_PROPERTY_OVERRIDES += \
 
 # Different dexopt types for different package update/install times.
 PRODUCT_SYSTEM_DEFAULT_PROPERTIES += \
-    pm.dexopt.first-boot=quicken \
+    pm.dexopt.first-boot=extract \
     pm.dexopt.boot=verify
 
 # The install filter is speed-profile in order to enable the use of
