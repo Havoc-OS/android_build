@@ -424,7 +424,13 @@ $(INSTALLED_VENDOR_BUILD_PROP_TARGET): $(VENDOR_BUILDINFO_SH) $(intermediate_sys
 	$(hide) echo ro.vendor.product.cpu.abilist="$(TARGET_CPU_ABI_LIST)">>$@
 	$(hide) echo ro.vendor.product.cpu.abilist32="$(TARGET_CPU_ABI_LIST_32_BIT)">>$@
 	$(hide) echo ro.vendor.product.cpu.abilist64="$(TARGET_CPU_ABI_LIST_64_BIT)">>$@
-	$(hide) TARGET_DEVICE="$(TARGET_DEVICE)" \
+	$(hide) TARGET_BUILD_TYPE="$(TARGET_BUILD_VARIANT)" \
+			BUILD_ID="$(BUILD_ID)" \
+			BUILD_NUMBER="$(BUILD_NUMBER_FROM_FILE)" \
+			PLATFORM_VERSION="$(PLATFORM_VERSION)" \
+			PLATFORM_SDK_VERSION="$(PLATFORM_SDK_VERSION)" \
+			BUILD_VERSION_TAGS="$(BUILD_VERSION_TAGS)" \
+			TARGET_DEVICE="$(TARGET_DEVICE)" \
 			PRODUCT_NAME="$(TARGET_PRODUCT)" \
 			PRODUCT_BRAND="$(PRODUCT_BRAND)" \
 			PRODUCT_MODEL="$(PRODUCT_MODEL)" \
@@ -447,7 +453,7 @@ INSTALLED_PRODUCT_BUILD_PROP_TARGET := $(TARGET_OUT_PRODUCT)/build.prop
 ALL_DEFAULT_INSTALLED_MODULES += $(INSTALLED_PRODUCT_BUILD_PROP_TARGET)
 
 FINAL_PRODUCT_PROPERTIES += \
-    $(call collapse-pairs, $(PRODUCT_PRODUCT_PROPERTIES))
+    $(call collapse-pairs, $(PRODUCT_PRODUCT_PROPERTIES) $(ADDITIONAL_PRODUCT_PROPERTIES))
 FINAL_PRODUCT_PROPERTIES := $(call uniq-pairs-by-first-component, \
     $(FINAL_PRODUCT_PROPERTIES),=)
 
@@ -840,23 +846,18 @@ endif # PRODUCT_SUPPORTS_VBOOT
 endif # TARGET_BOOTIMAGE_USE_EXT2 / BOARD_CUSTOM_BOOTIMG_MK
 endif # BOARD_USES_RECOVERY_AS_BOOT
 
-else	# TARGET_NO_KERNEL
+else # TARGET_NO_KERNEL == "true"
 ifdef BOARD_PREBUILT_BOOTIMAGE
 ifneq ($(BOARD_BUILD_SYSTEM_ROOT_IMAGE),true)
 # Remove when b/63676296 is resolved.
 $(error Prebuilt bootimage is only supported for AB targets)
 endif
 $(eval $(call copy-one-file,$(BOARD_PREBUILT_BOOTIMAGE),$(INSTALLED_BOOTIMAGE_TARGET)))
-else
+else # BOARD_PREBUILT_BOOTIMAGE not defined
 INTERNAL_KERNEL_CMDLINE := $(strip $(BOARD_KERNEL_CMDLINE))
-# HACK: The top-level targets depend on the bootimage.  Not all targets
-# can produce a bootimage, though, and emulator targets need the ramdisk
-# instead.  Fake it out by calling the ramdisk the bootimage.
-# TODO: make the emulator use bootimages, and make mkbootimg accept
-#       kernel-less inputs.
-INSTALLED_BOOTIMAGE_TARGET := $(INSTALLED_RAMDISK_TARGET)
-endif
-endif
+INSTALLED_BOOTIMAGE_TARGET :=
+endif # BOARD_PREBUILT_BOOTIMAGE
+endif # TARGET_NO_KERNEL
 
 # -----------------------------------------------------------------
 # NOTICE files
@@ -1110,53 +1111,80 @@ ifeq ($(INTERNAL_USERIMAGES_USE_EXT),true)
 INTERNAL_USERIMAGES_DEPS += $(MKE2FS_CONF)
 endif
 
+ifeq (true,$(USE_LOGICAL_PARTITIONS))
+
+ifeq ($(PRODUCTS.$(INTERNAL_PRODUCT).PRODUCT_SUPPORTS_VERITY),true)
+  $(error vboot 1.0 doesn't support logical partition)
+endif
+
+# TODO(b/80195851): Should not define BOARD_AVB_SYSTEM_KEY_PATH without
+# BOARD_AVB_SYSTEM_DETACHED_VBMETA.
+
+endif # USE_LOGICAL_PARTITIONS
+
 # $(1): the path of the output dictionary file
-# $(2): additional "key=value" pairs to append to the dictionary file.
-define generate-userimage-prop-dictionary
+# $(2): a subset of "system vendor cache userdata product oem"
+# $(3): additional "key=value" pairs to append to the dictionary file.
+define generate-image-prop-dictionary
 $(hide) echo "ext_mkuserimg=$(notdir $(MKEXTUSERIMG))" >> $(1)
 $(if $(INTERNAL_USERIMAGES_EXT_VARIANT),$(hide) echo "fs_type=$(INTERNAL_USERIMAGES_EXT_VARIANT)" >> $(1))
-$(if $(BOARD_SYSTEMIMAGE_PARTITION_SIZE),$(hide) echo "system_size=$(BOARD_SYSTEMIMAGE_PARTITION_SIZE)" >> $(1))
-$(if $(BOARD_SYSTEMIMAGE_FILE_SYSTEM_TYPE),$(hide) echo "system_fs_type=$(BOARD_SYSTEMIMAGE_FILE_SYSTEM_TYPE)" >> $(1))
-$(if $(BOARD_SYSTEMIMAGE_EXTFS_INODE_COUNT),$(hide) echo "system_extfs_inode_count=$(BOARD_SYSTEMIMAGE_EXTFS_INODE_COUNT)" >> $(1))
-$(if $(BOARD_SYSTEMIMAGE_EXTFS_RSV_PCT),$(hide) echo "system_extfs_rsv_pct=$(BOARD_SYSTEMIMAGE_EXTFS_RSV_PCT)" >> $(1))
-$(if $(BOARD_SYSTEMIMAGE_JOURNAL_SIZE),$(hide) echo "system_journal_size=$(BOARD_SYSTEMIMAGE_JOURNAL_SIZE)" >> $(1))
+$(if $(filter $(2),system),\
+    $(if $(BOARD_SYSTEMIMAGE_PARTITION_SIZE),$(hide) echo "system_size=$(BOARD_SYSTEMIMAGE_PARTITION_SIZE)" >> $(1))
+    $(if $(BOARD_SYSTEMIMAGE_FILE_SYSTEM_TYPE),$(hide) echo "system_fs_type=$(BOARD_SYSTEMIMAGE_FILE_SYSTEM_TYPE)" >> $(1))
+    $(if $(BOARD_SYSTEMIMAGE_EXTFS_INODE_COUNT),$(hide) echo "system_extfs_inode_count=$(BOARD_SYSTEMIMAGE_EXTFS_INODE_COUNT)" >> $(1))
+    $(if $(BOARD_SYSTEMIMAGE_EXTFS_RSV_PCT),$(hide) echo "system_extfs_rsv_pct=$(BOARD_SYSTEMIMAGE_EXTFS_RSV_PCT)" >> $(1))
+    $(if $(BOARD_SYSTEMIMAGE_JOURNAL_SIZE),$(hide) echo "system_journal_size=$(BOARD_SYSTEMIMAGE_JOURNAL_SIZE)" >> $(1))
+    $(if $(BOARD_SYSTEMIMAGE_SQUASHFS_COMPRESSOR),$(hide) echo "system_squashfs_compressor=$(BOARD_SYSTEMIMAGE_SQUASHFS_COMPRESSOR)" >> $(1))
+    $(if $(BOARD_SYSTEMIMAGE_SQUASHFS_COMPRESSOR_OPT),$(hide) echo "system_squashfs_compressor_opt=$(BOARD_SYSTEMIMAGE_SQUASHFS_COMPRESSOR_OPT)" >> $(1))
+    $(if $(BOARD_SYSTEMIMAGE_SQUASHFS_BLOCK_SIZE),$(hide) echo "system_squashfs_block_size=$(BOARD_SYSTEMIMAGE_SQUASHFS_BLOCK_SIZE)" >> $(1))
+    $(if $(BOARD_SYSTEMIMAGE_SQUASHFS_DISABLE_4K_ALIGN),$(hide) echo "system_squashfs_disable_4k_align=$(BOARD_SYSTEMIMAGE_SQUASHFS_DISABLE_4K_ALIGN)" >> $(1))
+    $(if $(PRODUCTS.$(INTERNAL_PRODUCT).PRODUCT_SYSTEM_BASE_FS_PATH),$(hide) echo "system_base_fs_file=$(PRODUCTS.$(INTERNAL_PRODUCT).PRODUCT_SYSTEM_BASE_FS_PATH)" >> $(1))
+    $(if $(PRODUCTS.$(INTERNAL_PRODUCT).PRODUCT_SYSTEM_HEADROOM),$(hide) echo "system_headroom=$(PRODUCTS.$(INTERNAL_PRODUCT).PRODUCT_SYSTEM_HEADROOM)" >> $(1))
+    $(if $(BOARD_SYSTEMIMAGE_PARTITION_RESERVED_SIZE),$(hide) echo "system_reserved_size=$(BOARD_SYSTEMIMAGE_PARTITION_RESERVED_SIZE)" >> $(1))
+)
 $(if $(BOARD_EXT4_SHARE_DUP_BLOCKS),$(hide) echo "ext4_share_dup_blocks=$(BOARD_EXT4_SHARE_DUP_BLOCKS)" >> $(1))
-$(if $(BOARD_SYSTEMIMAGE_SQUASHFS_COMPRESSOR),$(hide) echo "system_squashfs_compressor=$(BOARD_SYSTEMIMAGE_SQUASHFS_COMPRESSOR)" >> $(1))
-$(if $(BOARD_SYSTEMIMAGE_SQUASHFS_COMPRESSOR_OPT),$(hide) echo "system_squashfs_compressor_opt=$(BOARD_SYSTEMIMAGE_SQUASHFS_COMPRESSOR_OPT)" >> $(1))
-$(if $(BOARD_SYSTEMIMAGE_SQUASHFS_BLOCK_SIZE),$(hide) echo "system_squashfs_block_size=$(BOARD_SYSTEMIMAGE_SQUASHFS_BLOCK_SIZE)" >> $(1))
-$(if $(BOARD_SYSTEMIMAGE_SQUASHFS_DISABLE_4K_ALIGN),$(hide) echo "system_squashfs_disable_4k_align=$(BOARD_SYSTEMIMAGE_SQUASHFS_DISABLE_4K_ALIGN)" >> $(1))
-$(if $(PRODUCTS.$(INTERNAL_PRODUCT).PRODUCT_SYSTEM_BASE_FS_PATH),$(hide) echo "system_base_fs_file=$(PRODUCTS.$(INTERNAL_PRODUCT).PRODUCT_SYSTEM_BASE_FS_PATH)" >> $(1))
-$(if $(PRODUCTS.$(INTERNAL_PRODUCT).PRODUCT_SYSTEM_HEADROOM),$(hide) echo "system_headroom=$(PRODUCTS.$(INTERNAL_PRODUCT).PRODUCT_SYSTEM_HEADROOM)" >> $(1))
-$(if $(BOARD_USERDATAIMAGE_FILE_SYSTEM_TYPE),$(hide) echo "userdata_fs_type=$(BOARD_USERDATAIMAGE_FILE_SYSTEM_TYPE)" >> $(1))
-$(if $(BOARD_USERDATAIMAGE_PARTITION_SIZE),$(hide) echo "userdata_size=$(BOARD_USERDATAIMAGE_PARTITION_SIZE)" >> $(1))
+$(if $(filter $(2),userdata),\
+    $(if $(BOARD_USERDATAIMAGE_FILE_SYSTEM_TYPE),$(hide) echo "userdata_fs_type=$(BOARD_USERDATAIMAGE_FILE_SYSTEM_TYPE)" >> $(1))
+    $(if $(BOARD_USERDATAIMAGE_PARTITION_SIZE),$(hide) echo "userdata_size=$(BOARD_USERDATAIMAGE_PARTITION_SIZE)" >> $(1))
+)
 $(if $(BOARD_FLASH_LOGICAL_BLOCK_SIZE), $(hide) echo "flash_logical_block_size=$(BOARD_FLASH_LOGICAL_BLOCK_SIZE)" >> $(1))
 $(if $(BOARD_FLASH_ERASE_BLOCK_SIZE), $(hide) echo "flash_erase_block_size=$(BOARD_FLASH_ERASE_BLOCK_SIZE)" >> $(1))
-$(if $(BOARD_CACHEIMAGE_FILE_SYSTEM_TYPE),$(hide) echo "cache_fs_type=$(BOARD_CACHEIMAGE_FILE_SYSTEM_TYPE)" >> $(1))
-$(if $(BOARD_CACHEIMAGE_PARTITION_SIZE),$(hide) echo "cache_size=$(BOARD_CACHEIMAGE_PARTITION_SIZE)" >> $(1))
-$(if $(BOARD_VENDORIMAGE_FILE_SYSTEM_TYPE),$(hide) echo "vendor_fs_type=$(BOARD_VENDORIMAGE_FILE_SYSTEM_TYPE)" >> $(1))
-$(if $(BOARD_VENDORIMAGE_EXTFS_INODE_COUNT),$(hide) echo "vendor_extfs_inode_count=$(BOARD_VENDORIMAGE_EXTFS_INODE_COUNT)" >> $(1))
-$(if $(BOARD_VENDORIMAGE_EXTFS_RSV_PCT),$(hide) echo "vendor_extfs_rsv_pct=$(BOARD_VENDORIMAGE_EXTFS_RSV_PCT)" >> $(1))
-$(if $(BOARD_VENDORIMAGE_PARTITION_SIZE),$(hide) echo "vendor_size=$(BOARD_VENDORIMAGE_PARTITION_SIZE)" >> $(1))
-$(if $(BOARD_VENDORIMAGE_JOURNAL_SIZE),$(hide) echo "vendor_journal_size=$(BOARD_VENDORIMAGE_JOURNAL_SIZE)" >> $(1))
-$(if $(BOARD_VENDORIMAGE_SQUASHFS_COMPRESSOR),$(hide) echo "vendor_squashfs_compressor=$(BOARD_VENDORIMAGE_SQUASHFS_COMPRESSOR)" >> $(1))
-$(if $(BOARD_VENDORIMAGE_SQUASHFS_COMPRESSOR_OPT),$(hide) echo "vendor_squashfs_compressor_opt=$(BOARD_VENDORIMAGE_SQUASHFS_COMPRESSOR_OPT)" >> $(1))
-$(if $(BOARD_VENDORIMAGE_SQUASHFS_BLOCK_SIZE),$(hide) echo "vendor_squashfs_block_size=$(BOARD_VENDORIMAGE_SQUASHFS_BLOCK_SIZE)" >> $(1))
-$(if $(BOARD_VENDORIMAGE_SQUASHFS_DISABLE_4K_ALIGN),$(hide) echo "vendor_squashfs_disable_4k_align=$(BOARD_VENDORIMAGE_SQUASHFS_DISABLE_4K_ALIGN)" >> $(1))
-$(if $(PRODUCTS.$(INTERNAL_PRODUCT).PRODUCT_VENDOR_BASE_FS_PATH),$(hide) echo "vendor_base_fs_file=$(PRODUCTS.$(INTERNAL_PRODUCT).PRODUCT_VENDOR_BASE_FS_PATH)" >> $(1))
-$(if $(BOARD_PRODUCTIMAGE_FILE_SYSTEM_TYPE),$(hide) echo "product_fs_type=$(BOARD_PRODUCTIMAGE_FILE_SYSTEM_TYPE)" >> $(1))
-$(if $(BOARD_PRODUCTIMAGE_EXTFS_INODE_COUNT),$(hide) echo "product_extfs_inode_count=$(BOARD_PRODUCTIMAGE_EXTFS_INODE_COUNT)" >> $(1))
-$(if $(BOARD_PRODUCTIMAGE_EXTFS_RSV_PCT),$(hide) echo "product_extfs_rsv_pct=$(BOARD_PRODUCTIMAGE_EXTFS_RSV_PCT)" >> $(1))
-$(if $(BOARD_PRODUCTIMAGE_PARTITION_SIZE),$(hide) echo "product_size=$(BOARD_PRODUCTIMAGE_PARTITION_SIZE)" >> $(1))
-$(if $(BOARD_PRODUCTIMAGE_JOURNAL_SIZE),$(hide) echo "product_journal_size=$(BOARD_PRODUCTIMAGE_JOURNAL_SIZE)" >> $(1))
-$(if $(BOARD_PRODUCTIMAGE_SQUASHFS_COMPRESSOR),$(hide) echo "product_squashfs_compressor=$(BOARD_PRODUCTIMAGE_SQUASHFS_COMPRESSOR)" >> $(1))
-$(if $(BOARD_PRODUCTIMAGE_SQUASHFS_COMPRESSOR_OPT),$(hide) echo "product_squashfs_compressor_opt=$(BOARD_PRODUCTIMAGE_SQUASHFS_COMPRESSOR_OPT)" >> $(1))
-$(if $(BOARD_PRODUCTIMAGE_SQUASHFS_BLOCK_SIZE),$(hide) echo "product_squashfs_block_size=$(BOARD_PRODUCTIMAGE_SQUASHFS_BLOCK_SIZE)" >> $(1))
-$(if $(BOARD_PRODUCTIMAGE_SQUASHFS_DISABLE_4K_ALIGN),$(hide) echo "product_squashfs_disable_4k_align=$(BOARD_PRODUCTIMAGE_SQUASHFS_DISABLE_4K_ALIGN)" >> $(1))
-$(if $(PRODUCTS.$(INTERNAL_PRODUCT).PRODUCT_PRODUCT_BASE_FS_PATH),$(hide) echo "product_base_fs_file=$(PRODUCTS.$(INTERNAL_PRODUCT).PRODUCT_PRODUCT_BASE_FS_PATH)" >> $(1))
-$(if $(BOARD_OEMIMAGE_PARTITION_SIZE),$(hide) echo "oem_size=$(BOARD_OEMIMAGE_PARTITION_SIZE)" >> $(1))
-$(if $(BOARD_OEMIMAGE_JOURNAL_SIZE),$(hide) echo "oem_journal_size=$(BOARD_OEMIMAGE_JOURNAL_SIZE)" >> $(1))
-$(if $(BOARD_OEMIMAGE_EXTFS_INODE_COUNT),$(hide) echo "oem_extfs_inode_count=$(BOARD_OEMIMAGE_EXTFS_INODE_COUNT)" >> $(1))
-$(if $(BOARD_OEMIMAGE_EXTFS_RSV_PCT),$(hide) echo "oem_extfs_rsv_pct=$(BOARD_OEMIMAGE_EXTFS_RSV_PCT)" >> $(1))
+$(if $(filter $(2),cache),\
+    $(if $(BOARD_CACHEIMAGE_FILE_SYSTEM_TYPE),$(hide) echo "cache_fs_type=$(BOARD_CACHEIMAGE_FILE_SYSTEM_TYPE)" >> $(1))
+    $(if $(BOARD_CACHEIMAGE_PARTITION_SIZE),$(hide) echo "cache_size=$(BOARD_CACHEIMAGE_PARTITION_SIZE)" >> $(1))
+)
+$(if $(filter $(2),vendor),\
+    $(if $(BOARD_VENDORIMAGE_FILE_SYSTEM_TYPE),$(hide) echo "vendor_fs_type=$(BOARD_VENDORIMAGE_FILE_SYSTEM_TYPE)" >> $(1))
+    $(if $(BOARD_VENDORIMAGE_EXTFS_INODE_COUNT),$(hide) echo "vendor_extfs_inode_count=$(BOARD_VENDORIMAGE_EXTFS_INODE_COUNT)" >> $(1))
+    $(if $(BOARD_VENDORIMAGE_EXTFS_RSV_PCT),$(hide) echo "vendor_extfs_rsv_pct=$(BOARD_VENDORIMAGE_EXTFS_RSV_PCT)" >> $(1))
+    $(if $(BOARD_VENDORIMAGE_PARTITION_SIZE),$(hide) echo "vendor_size=$(BOARD_VENDORIMAGE_PARTITION_SIZE)" >> $(1))
+    $(if $(BOARD_VENDORIMAGE_JOURNAL_SIZE),$(hide) echo "vendor_journal_size=$(BOARD_VENDORIMAGE_JOURNAL_SIZE)" >> $(1))
+    $(if $(BOARD_VENDORIMAGE_SQUASHFS_COMPRESSOR),$(hide) echo "vendor_squashfs_compressor=$(BOARD_VENDORIMAGE_SQUASHFS_COMPRESSOR)" >> $(1))
+    $(if $(BOARD_VENDORIMAGE_SQUASHFS_COMPRESSOR_OPT),$(hide) echo "vendor_squashfs_compressor_opt=$(BOARD_VENDORIMAGE_SQUASHFS_COMPRESSOR_OPT)" >> $(1))
+    $(if $(BOARD_VENDORIMAGE_SQUASHFS_BLOCK_SIZE),$(hide) echo "vendor_squashfs_block_size=$(BOARD_VENDORIMAGE_SQUASHFS_BLOCK_SIZE)" >> $(1))
+    $(if $(BOARD_VENDORIMAGE_SQUASHFS_DISABLE_4K_ALIGN),$(hide) echo "vendor_squashfs_disable_4k_align=$(BOARD_VENDORIMAGE_SQUASHFS_DISABLE_4K_ALIGN)" >> $(1))
+    $(if $(PRODUCTS.$(INTERNAL_PRODUCT).PRODUCT_VENDOR_BASE_FS_PATH),$(hide) echo "vendor_base_fs_file=$(PRODUCTS.$(INTERNAL_PRODUCT).PRODUCT_VENDOR_BASE_FS_PATH)" >> $(1))
+    $(if $(BOARD_VENDORIMAGE_PARTITION_RESERVED_SIZE),$(hide) echo "vendor_reserved_size=$(BOARD_VENDORIMAGE_PARTITION_RESERVED_SIZE)" >> $(1))
+)
+$(if $(filter $(2),product),\
+    $(if $(BOARD_PRODUCTIMAGE_FILE_SYSTEM_TYPE),$(hide) echo "product_fs_type=$(BOARD_PRODUCTIMAGE_FILE_SYSTEM_TYPE)" >> $(1))
+    $(if $(BOARD_PRODUCTIMAGE_EXTFS_INODE_COUNT),$(hide) echo "product_extfs_inode_count=$(BOARD_PRODUCTIMAGE_EXTFS_INODE_COUNT)" >> $(1))
+    $(if $(BOARD_PRODUCTIMAGE_EXTFS_RSV_PCT),$(hide) echo "product_extfs_rsv_pct=$(BOARD_PRODUCTIMAGE_EXTFS_RSV_PCT)" >> $(1))
+    $(if $(BOARD_PRODUCTIMAGE_PARTITION_SIZE),$(hide) echo "product_size=$(BOARD_PRODUCTIMAGE_PARTITION_SIZE)" >> $(1))
+    $(if $(BOARD_PRODUCTIMAGE_JOURNAL_SIZE),$(hide) echo "product_journal_size=$(BOARD_PRODUCTIMAGE_JOURNAL_SIZE)" >> $(1))
+    $(if $(BOARD_PRODUCTIMAGE_SQUASHFS_COMPRESSOR),$(hide) echo "product_squashfs_compressor=$(BOARD_PRODUCTIMAGE_SQUASHFS_COMPRESSOR)" >> $(1))
+    $(if $(BOARD_PRODUCTIMAGE_SQUASHFS_COMPRESSOR_OPT),$(hide) echo "product_squashfs_compressor_opt=$(BOARD_PRODUCTIMAGE_SQUASHFS_COMPRESSOR_OPT)" >> $(1))
+    $(if $(BOARD_PRODUCTIMAGE_SQUASHFS_BLOCK_SIZE),$(hide) echo "product_squashfs_block_size=$(BOARD_PRODUCTIMAGE_SQUASHFS_BLOCK_SIZE)" >> $(1))
+    $(if $(BOARD_PRODUCTIMAGE_SQUASHFS_DISABLE_4K_ALIGN),$(hide) echo "product_squashfs_disable_4k_align=$(BOARD_PRODUCTIMAGE_SQUASHFS_DISABLE_4K_ALIGN)" >> $(1))
+    $(if $(PRODUCTS.$(INTERNAL_PRODUCT).PRODUCT_PRODUCT_BASE_FS_PATH),$(hide) echo "product_base_fs_file=$(PRODUCTS.$(INTERNAL_PRODUCT).PRODUCT_PRODUCT_BASE_FS_PATH)" >> $(1))
+    $(if $(BOARD_PRODUCTIMAGE_PARTITION_RESERVED_SIZE),$(hide) echo "product_reserved_size=$(BOARD_PRODUCTIMAGE_PARTITION_RESERVED_SIZE)" >> $(1))
+)
+$(if $(filter $(2),oem),\
+    $(if $(BOARD_OEMIMAGE_PARTITION_SIZE),$(hide) echo "oem_size=$(BOARD_OEMIMAGE_PARTITION_SIZE)" >> $(1))
+    $(if $(BOARD_OEMIMAGE_JOURNAL_SIZE),$(hide) echo "oem_journal_size=$(BOARD_OEMIMAGE_JOURNAL_SIZE)" >> $(1))
+    $(if $(BOARD_OEMIMAGE_EXTFS_INODE_COUNT),$(hide) echo "oem_extfs_inode_count=$(BOARD_OEMIMAGE_EXTFS_INODE_COUNT)" >> $(1))
+    $(if $(BOARD_OEMIMAGE_EXTFS_RSV_PCT),$(hide) echo "oem_extfs_rsv_pct=$(BOARD_OEMIMAGE_EXTFS_RSV_PCT)" >> $(1))
+)
 $(if $(INTERNAL_USERIMAGES_SPARSE_EXT_FLAG),$(hide) echo "extfs_sparse_flag=$(INTERNAL_USERIMAGES_SPARSE_EXT_FLAG)" >> $(1))
 $(if $(INTERNAL_USERIMAGES_SPARSE_SQUASHFS_FLAG),$(hide) echo "squashfs_sparse_flag=$(INTERNAL_USERIMAGES_SPARSE_SQUASHFS_FLAG)" >> $(1))
 $(hide) echo "selinux_fc=$(SELINUX_FC)" >> $(1)
@@ -1199,9 +1227,22 @@ $(if $(BOARD_AVB_ENABLE),\
 $(if $(filter true,$(BOARD_USES_RECOVERY_AS_BOOT)),\
     $(hide) echo "recovery_as_boot=true" >> $(1))
 $(if $(filter true,$(BOARD_BUILD_SYSTEM_ROOT_IMAGE)),\
-    $(hide) echo "system_root_image=true" >> $(1);\
-    echo "ramdisk_dir=$(TARGET_ROOT_OUT)" >> $(1))
-$(if $(2),$(hide) $(foreach kv,$(2),echo "$(kv)" >> $(1);))
+    $(hide) echo "system_root_image=true" >> $(1)
+    $(hide) echo "root_dir=$(TARGET_ROOT_OUT)" >> $(1))
+$(if $(PRODUCT_USE_DYNAMIC_PARTITION_SIZE),$(hide) echo "use_dynamic_partition_size=true" >> $(1))
+$(if $(3),$(hide) $(foreach kv,$(3),echo "$(kv)" >> $(1);))
+endef
+
+# $(1): the path of the output dictionary file
+# $(2): additional "key=value" pairs to append to the dictionary file.
+define generate-userimage-prop-dictionary
+$(call generate-image-prop-dictionary,$(1),system vendor cache userdata product oem,$(2))
+endef
+
+# $(1): the path of the input dictionary file, where each line has the format key=value
+# $(2): the key to look up
+define read-image-prop-dictionary
+$$(grep '$(2)=' $(1) | cut -f2- -d'=')
 endef
 
 # $(1): modules list
@@ -1639,20 +1680,13 @@ define build-systemimage-target
   $(call create-system-vendor-symlink)
   $(call create-system-product-symlink)
   @mkdir -p $(dir $(1)) $(systemimage_intermediates) && rm -rf $(systemimage_intermediates)/system_image_info.txt
-  $(call generate-userimage-prop-dictionary, $(systemimage_intermediates)/system_image_info.txt, \
+  $(call generate-image-prop-dictionary, $(systemimage_intermediates)/system_image_info.txt,system, \
       skip_fsck=true)
   $(hide) PATH=$(foreach p,$(INTERNAL_USERIMAGES_BINARY_PATHS),$(p):)$$PATH \
       build/make/tools/releasetools/build_image.py \
       $(TARGET_OUT) $(systemimage_intermediates)/system_image_info.txt $(1) $(TARGET_OUT) \
-      || ( echo "Out of space? the tree size of $(TARGET_OUT) is (MB): " 1>&2 ;\
-           du -sm $(TARGET_OUT) 1>&2;\
-           if [ "$(INTERNAL_USERIMAGES_EXT_VARIANT)" == "ext4" ]; then \
-               maxsize=$(BOARD_SYSTEMIMAGE_PARTITION_SIZE); \
-               echo "The max is $$(( maxsize / 1048576 )) MB." 1>&2 ;\
-           else \
-               echo "The max is $$(( $(BOARD_SYSTEMIMAGE_PARTITION_SIZE) / 1048576 )) MB." 1>&2 ;\
-           fi; \
-           mkdir -p $(DIST_DIR); cp $(INSTALLED_FILES_FILE) $(DIST_DIR)/installed-files-rescued.txt; \
+      $(systemimage_intermediates)/generated_system_image_info.txt \
+      || ( mkdir -p $(DIST_DIR); cp $(INSTALLED_FILES_FILE) $(DIST_DIR)/installed-files-rescued.txt; \
            exit 1 )
 endef
 
@@ -1667,6 +1701,7 @@ SYSTEMIMAGE_SOURCE_DIR := $(TARGET_OUT)
 # as the source (since they are very similar).  Generate the patch so
 # we can see how big it's going to be, and include that in the system
 # image size check calculation.
+ifneq ($(INSTALLED_BOOTIMAGE_TARGET),)
 ifneq ($(INSTALLED_RECOVERYIMAGE_TARGET),)
 ifneq ($(BOARD_USES_FULL_RECOVERY_IMAGE),true)
 ifneq (,$(filter true, $(BOARD_BUILD_SYSTEM_ROOT_IMAGE) $(BOARD_INCLUDE_RECOVERY_DTBO)))
@@ -1689,14 +1724,16 @@ $(RECOVERY_FROM_BOOT_PATCH): \
 	$(PRIVATE_DIFF_TOOL) $(INSTALLED_BOOTIMAGE_TARGET) $(INSTALLED_RECOVERYIMAGE_TARGET) $@
 else # $(BOARD_USES_FULL_RECOVERY_IMAGE) == true
 RECOVERY_FROM_BOOT_PATCH := $(INSTALLED_RECOVERYIMAGE_TARGET)
-endif
-endif
-
+endif # BOARD_USES_FULL_RECOVERY_IMAGE
+endif # INSTALLED_RECOVERYIMAGE_TARGET
+endif # INSTALLED_BOOTIMAGE_TARGET
 
 $(INSTALLED_SYSTEMIMAGE): $(BUILT_SYSTEMIMAGE) $(RECOVERY_FROM_BOOT_PATCH)
 	@echo "Install system fs image: $@"
 	$(copy-file-to-target)
-	$(hide) $(call assert-max-image-size,$@ $(RECOVERY_FROM_BOOT_PATCH),$(BOARD_SYSTEMIMAGE_PARTITION_SIZE))
+	$(hide) $(call assert-max-image-size,$@ $(RECOVERY_FROM_BOOT_PATCH),\
+		$(call read-image-prop-dictionary,\
+			$(systemimage_intermediates)/generated_system_image_info.txt,system_size))
 
 systemimage: $(INSTALLED_SYSTEMIMAGE)
 
@@ -1705,7 +1742,9 @@ systemimage-nodeps snod: $(filter-out systemimage-nodeps snod,$(MAKECMDGOALS)) \
 	            | $(INTERNAL_USERIMAGES_DEPS)
 	@echo "make $@: ignoring dependencies"
 	$(call build-systemimage-target,$(INSTALLED_SYSTEMIMAGE))
-	$(hide) $(call assert-max-image-size,$(INSTALLED_SYSTEMIMAGE),$(BOARD_SYSTEMIMAGE_PARTITION_SIZE))
+	$(hide) $(call assert-max-image-size,$(INSTALLED_SYSTEMIMAGE),\
+		$(call read-image-prop-dictionary,\
+			$(systemimage_intermediates)/generated_system_image_info.txt,system_size))
 
 ifneq (,$(filter systemimage-nodeps snod, $(MAKECMDGOALS)))
 ifeq (true,$(WITH_DEXPREOPT))
@@ -1878,7 +1917,7 @@ define build-userdataimage-target
   $(call pretty,"Target userdata fs image: $(INSTALLED_USERDATAIMAGE_TARGET)")
   @mkdir -p $(TARGET_OUT_DATA)
   @mkdir -p $(userdataimage_intermediates) && rm -rf $(userdataimage_intermediates)/userdata_image_info.txt
-  $(call generate-userimage-prop-dictionary, $(userdataimage_intermediates)/userdata_image_info.txt, skip_fsck=true)
+  $(call generate-image-prop-dictionary, $(userdataimage_intermediates)/userdata_image_info.txt,userdata,skip_fsck=true)
   $(hide) PATH=$(foreach p,$(INTERNAL_USERIMAGES_BINARY_PATHS),$(p):)$$PATH \
       build/make/tools/releasetools/build_image.py \
       $(TARGET_OUT_DATA) $(userdataimage_intermediates)/userdata_image_info.txt $(INSTALLED_USERDATAIMAGE_TARGET) $(TARGET_OUT)
@@ -1985,7 +2024,7 @@ define build-cacheimage-target
   $(call pretty,"Target cache fs image: $(INSTALLED_CACHEIMAGE_TARGET)")
   @mkdir -p $(TARGET_OUT_CACHE)
   @mkdir -p $(cacheimage_intermediates) && rm -rf $(cacheimage_intermediates)/cache_image_info.txt
-  $(call generate-userimage-prop-dictionary, $(cacheimage_intermediates)/cache_image_info.txt, skip_fsck=true)
+  $(call generate-image-prop-dictionary, $(cacheimage_intermediates)/cache_image_info.txt,cache,skip_fsck=true)
   $(hide) PATH=$(foreach p,$(INTERNAL_USERIMAGES_BINARY_PATHS),$(p):)$$PATH \
       build/make/tools/releasetools/build_image.py \
       $(TARGET_OUT_CACHE) $(cacheimage_intermediates)/cache_image_info.txt $(INSTALLED_CACHEIMAGE_TARGET) $(TARGET_OUT)
@@ -2042,11 +2081,14 @@ define build-systemotherimage-target
   $(call pretty,"Target system_other fs image: $(INSTALLED_SYSTEMOTHERIMAGE_TARGET)")
   @mkdir -p $(TARGET_OUT_SYSTEM_OTHER)
   @mkdir -p $(systemotherimage_intermediates) && rm -rf $(systemotherimage_intermediates)/system_other_image_info.txt
-  $(call generate-userimage-prop-dictionary, $(systemotherimage_intermediates)/system_other_image_info.txt, skip_fsck=true)
+  $(call generate-image-prop-dictionary, $(systemotherimage_intermediates)/system_other_image_info.txt,system,skip_fsck=true)
   $(hide) PATH=$(foreach p,$(INTERNAL_USERIMAGES_BINARY_PATHS),$(p):)$$PATH \
       build/make/tools/releasetools/build_image.py \
-      $(TARGET_OUT_SYSTEM_OTHER) $(systemotherimage_intermediates)/system_other_image_info.txt $(INSTALLED_SYSTEMOTHERIMAGE_TARGET) $(TARGET_OUT)
-  $(hide) $(call assert-max-image-size,$(INSTALLED_SYSTEMOTHERIMAGE_TARGET),$(BOARD_SYSTEMIMAGE_PARTITION_SIZE))
+      $(TARGET_OUT_SYSTEM_OTHER) $(systemotherimage_intermediates)/system_other_image_info.txt $(INSTALLED_SYSTEMOTHERIMAGE_TARGET) $(TARGET_OUT)\
+      $(systemotherimage_intermediates)/generated_system_other_image_info.txt
+  $(hide) $(call assert-max-image-size,$(INSTALLED_SYSTEMOTHERIMAGE_TARGET),\
+    $(call read-image-prop-dictionary,\
+      $(systemotherimage_intermediates)/generated_system_other_image_info.txt,system_size))
 endef
 
 # We just build this directly to the install location.
@@ -2091,13 +2133,16 @@ define build-vendorimage-target
   $(call pretty,"Target vendor fs image: $(INSTALLED_VENDORIMAGE_TARGET)")
   @mkdir -p $(TARGET_OUT_VENDOR)
   @mkdir -p $(vendorimage_intermediates) && rm -rf $(vendorimage_intermediates)/vendor_image_info.txt
-  $(call generate-userimage-prop-dictionary, $(vendorimage_intermediates)/vendor_image_info.txt, skip_fsck=true)
+  $(call generate-image-prop-dictionary, $(vendorimage_intermediates)/vendor_image_info.txt,vendor,skip_fsck=true)
   $(if $(BOARD_VENDOR_KERNEL_MODULES), \
     $(call build-image-kernel-modules,$(BOARD_VENDOR_KERNEL_MODULES),$(TARGET_OUT_VENDOR),vendor/,$(call intermediates-dir-for,PACKAGING,depmod_vendor)))
   $(hide) PATH=$(foreach p,$(INTERNAL_USERIMAGES_BINARY_PATHS),$(p):)$$PATH \
       build/make/tools/releasetools/build_image.py \
-      $(TARGET_OUT_VENDOR) $(vendorimage_intermediates)/vendor_image_info.txt $(INSTALLED_VENDORIMAGE_TARGET) $(TARGET_OUT)
-  $(hide) $(call assert-max-image-size,$(INSTALLED_VENDORIMAGE_TARGET),$(BOARD_VENDORIMAGE_PARTITION_SIZE))
+      $(TARGET_OUT_VENDOR) $(vendorimage_intermediates)/vendor_image_info.txt $(INSTALLED_VENDORIMAGE_TARGET) $(TARGET_OUT) \
+      $(vendorimage_intermediates)/generated_vendor_image_info.txt
+  $(hide) $(call assert-max-image-size,$(INSTALLED_VENDORIMAGE_TARGET),\
+      $(call read-image-prop-dictionary,\
+          $(vendorimage_intermediates)/generated_vendor_image_info.txt,vendor_size))
 endef
 
 # We just build this directly to the install location.
@@ -2143,11 +2188,14 @@ define build-productimage-target
   $(call pretty,"Target product fs image: $(INSTALLED_PRODUCTIMAGE_TARGET)")
   @mkdir -p $(TARGET_OUT_PRODUCT)
   @mkdir -p $(productimage_intermediates) && rm -rf $(productimage_intermediates)/product_image_info.txt
-  $(call generate-userimage-prop-dictionary, $(productimage_intermediates)/product_image_info.txt, skip_fsck=true)
+  $(call generate-image-prop-dictionary, $(productimage_intermediates)/product_image_info.txt,product,skip_fsck=true)
   $(hide) PATH=$(foreach p,$(INTERNAL_USERIMAGES_BINARY_PATHS),$(p):)$$PATH \
       ./build/tools/releasetools/build_image.py \
-      $(TARGET_OUT_PRODUCT) $(productimage_intermediates)/product_image_info.txt $(INSTALLED_PRODUCTIMAGE_TARGET) $(TARGET_OUT)
-  $(hide) $(call assert-max-image-size,$(INSTALLED_PRODUCTIMAGE_TARGET),$(BOARD_PRODUCTIMAGE_PARTITION_SIZE))
+      $(TARGET_OUT_PRODUCT) $(productimage_intermediates)/product_image_info.txt $(INSTALLED_PRODUCTIMAGE_TARGET) $(TARGET_OUT) \
+      $(productimage_intermediates)/generated_product_image_info.txt
+  $(hide) $(call assert-max-image-size,$(INSTALLED_PRODUCTIMAGE_TARGET),\
+      $(call read-image-prop-dictionary,\
+          $(productimage_intermediates)/generated_product_image_info.txt,product_size))
 endef
 
 # We just build this directly to the install location.
@@ -2245,11 +2293,13 @@ $(eval _footer_args := $(PART)_FOOTER_ARGS)
 $(eval $($(_footer_args)) += --rollback_index $($(_rollback_index)))
 endef
 
+ifdef INSTALLED_BOOTIMAGE_TARGET
 ifdef BOARD_AVB_BOOT_KEY_PATH
 $(eval $(call check-and-set-avb-chain-args,BOOT))
 else
 INTERNAL_AVB_MAKE_VBMETA_IMAGE_ARGS += \
     --include_descriptors_from_image $(INSTALLED_BOOTIMAGE_TARGET)
+endif
 endif
 
 ifdef BOARD_AVB_SYSTEM_KEY_PATH
@@ -2311,14 +2361,6 @@ ifdef BOARD_AVB_ROLLBACK_INDEX
 BOARD_AVB_MAKE_VBMETA_IMAGE_ARGS += --rollback_index $(BOARD_AVB_ROLLBACK_INDEX)
 endif
 
-ifndef BOARD_BOOTIMAGE_PARTITION_SIZE
-  $(error BOARD_BOOTIMAGE_PARTITION_SIZE must be set for BOARD_AVB_ENABLE)
-endif
-
-ifndef BOARD_SYSTEMIMAGE_PARTITION_SIZE
-  $(error BOARD_SYSTEMIMAGE_PARTITION_SIZE must be set for BOARD_AVB_ENABLE)
-endif
-
 # $(1): the directory to extract public keys to
 define extract-avb-chain-public-keys
   $(if $(BOARD_AVB_BOOT_KEY_PATH),\
@@ -2369,15 +2411,106 @@ $(INSTALLED_VBMETAIMAGE_TARGET): \
 vbmetaimage-nodeps:
 	$(build-vbmetaimage-target)
 
-else ifeq (true,$(BOARD_BUILD_DISABLED_VBMETAIMAGE))
-BUILT_DISABLED_VBMETAIMAGE := $(PRODUCT_OUT)/vbmeta.img
-
-INSTALLED_VBMETAIMAGE_TARGET := $(BUILT_DISABLED_VBMETAIMAGE)
-$(INSTALLED_VBMETAIMAGE_TARGET): $(AVBTOOL)
-	$(hide) $(AVBTOOL) make_vbmeta_image \
-	  --flag 2 --padding_size 4096 --output $@
-
 endif # BOARD_AVB_ENABLE
+
+# -----------------------------------------------------------------
+# super partition image
+
+# (1): list of items like "system", "vendor", "product", "product_services"
+# return: map each item to the corresponding image target.
+# system => $(BUILT_SYSTEMIMAGE), vendor => $(INSTALLED_VENDORIMAGE_TARGET), etc.
+define image-for-partitions
+$(foreach item,$(1),$(or $(strip $(foreach mapping,
+            system:$(BUILT_SYSTEMIMAGE)
+            product_services:$(INSTALLED_PRODUCT_SERVICESIMAGE_TARGET),
+        $(if $(filter $(call word-colon,1,$(mapping)),$(item)),
+            $(patsubst $(call word-colon,1,$(mapping)),$(call word-colon,2,$(mapping)),$(item))))),
+    $(INSTALLED_$(call to-upper,$(item)IMAGE_TARGET))))
+endef
+
+# (1): list of items like "system", "vendor", "product", "product_services"
+# return: map each item into a command ( wrapped in $$() ) that reads the size
+define read-size-of-partitions
+$(foreach p,$(1),$(call read-image-prop-dictionary,$($(p)image_intermediates)/generated_$(p)_image_info.txt,$(p)_size))
+endef
+
+ifeq (true,$(PRODUCT_BUILD_SUPER_PARTITION))
+
+# BOARD_SUPER_PARTITION_SIZE must be defined to build super image.
+ifdef BOARD_SUPER_PARTITION_SIZE
+
+INSTALLED_SUPERIMAGE_TARGET := $(PRODUCT_OUT)/super.img
+$(INSTALLED_SUPERIMAGE_TARGET): $(call image-for-partitions,$(BOARD_SUPER_PARTITION_PARTITION_LIST))
+
+# For A/B devices, super partition always contains sub-partitions in the _a slot, because this
+# image should only be used for bootstrapping / initializing the device. When flashing the image,
+# bootloader fastboot should always mark _a slot as bootable.
+ifeq ($(AB_OTA_UPDATER),true)
+$(INSTALLED_SUPERIMAGE_TARGET): PRIVATE_PARTITION_SUFFIX=_a
+$(INSTALLED_SUPERIMAGE_TARGET): PRIVATE_METADATA_SLOTS=2
+else
+$(INSTALLED_SUPERIMAGE_TARGET): PRIVATE_METADATA_SLOTS=1
+endif # AB_OTA_UPDATER
+
+
+$(INSTALLED_SUPERIMAGE_TARGET): $(HOST_OUT_EXECUTABLES)/lpmake
+	$< \
+		--sparse \
+		--metadata-size 65536 \
+		--metadata-slots $(PRIVATE_METADATA_SLOTS) \
+		--device-size $(BOARD_SUPER_PARTITION_SIZE) \
+		--output $@ \
+		$(foreach name,$(BOARD_SUPER_PARTITION_PARTITION_LIST), \
+			--partition $(name)$(PRIVATE_PARTITION_SUFFIX):$$($(UUIDGEN) $(name)$(PRIVATE_PARTITION_SUFFIX)):readonly:$(call read-size-of-partitions,$(name)) \
+			--image $(name)$(PRIVATE_PARTITION_SUFFIX)=$(call image-for-partitions,$(name)))
+
+$(call dist-for-goals,dist_files,$(INSTALLED_SUPERIMAGE_TARGET))
+
+endif # BOARD_SUPER_PARTITION_SIZE
+endif # PRODUCT_BUILD_SUPER_PARTITION
+
+# -----------------------------------------------------------------
+# Check image sizes <= size of super partition
+
+ifeq (,$(TARGET_BUILD_APPS))
+# Do not check for apps-only build
+
+ifeq (true,$(PRODUCT_BUILD_SUPER_PARTITION))
+ifdef BOARD_SUPER_PARTITION_SIZE
+ifdef BOARD_SUPER_PARTITION_PARTITION_LIST
+
+droid_targets: check_android_partition_sizes
+
+.PHONY: check_android_partition_sizes
+
+# BOARD_SUPER_PARTITION_PARTITION_LIST: a list of the following tokens
+valid_super_partition_list := system vendor product productservices
+ifneq (,$(filter-out $(valid_super_partition_list),$(BOARD_SUPER_PARTITION_PARTITION_LIST)))
+$(error BOARD_SUPER_PARTITION_PARTITION_LIST contains invalid partition name. \
+        Valid names are $(valid_super_partition_list).)
+endif
+valid_super_partition_list :=
+
+# Add image dependencies so that generated_*_image_info.txt are written before checking.
+check_android_partition_sizes: $(call image-for-partitions,$(BOARD_SUPER_PARTITION_PARTITION_LIST))
+
+check_android_partition_sizes:
+	partition_size_list="$(call read-size-of-partitions,$(BOARD_SUPER_PARTITION_PARTITION_LIST))"; \
+	sum_sizes_expr=$$(sed -e 's/ /+/g' <<< "$${partition_size_list}"); \
+	if [ $$(( $${sum_sizes_expr} )) -gt $(BOARD_SUPER_PARTITION_SIZE) ]; then \
+		echo 'The sum of sizes of all logical partitions is larger than BOARD_SUPER_PARTITION_SIZE.'; \
+		echo $${sum_sizes_expr} '==' $$(( $${sum_sizes_expr} )) '>' $(BOARD_SUPER_PARTITION_SIZE); \
+		exit 1; \
+	else \
+		echo 'The sum of sizes of all logical partitions is within BOARD_SUPER_PARTITION_SIZE:' \
+		    $${sum_sizes_expr} '==' $$(( $${sum_sizes_expr} )) '<=' $(BOARD_SUPER_PARTITION_SIZE); \
+	fi
+
+endif # BOARD_SUPER_PARTITION_PARTITION_LIST
+endif # BOARD_SUPER_PARTITION_SIZE
+endif # PRODUCT_BUILD_SUPER_PARTITION
+
+endif # TARGET_BUILD_APPS
 
 # -----------------------------------------------------------------
 # bring in the installer image generation defines if necessary
@@ -2388,33 +2521,40 @@ endif
 # -----------------------------------------------------------------
 # host tools needed to build dist and OTA packages
 
+# set build_ota_package, and allow opt-out below
 build_ota_package := true
 ifeq ($(TARGET_SKIP_OTA_PACKAGE),true)
-build_ota_package := false
+  build_ota_package := false
 endif
 ifneq ($(strip $(SANITIZE_TARGET)),)
-build_ota_package := false
+    build_ota_package := false
 endif
 ifeq ($(TARGET_PRODUCT),sdk)
-build_ota_package := false
+    build_ota_package := false
 endif
 ifneq ($(filter generic%,$(TARGET_DEVICE)),)
-build_ota_package := false
+    build_ota_package := false
 endif
 ifeq ($(TARGET_NO_KERNEL),true)
-build_ota_package := false
+    build_ota_package := false
 endif
 ifeq ($(recovery_fstab),)
-build_ota_package := false
+    build_ota_package := false
 endif
 ifeq ($(TARGET_BUILD_PDK),true)
-build_ota_package := false
+    build_ota_package := false
+endif
+
+# set build_otatools_package, and allow opt-out below
+build_otatools_package := true
+ifeq ($(TARGET_SKIP_OTATOOLS_PACKAGE),true)
+    build_otatools_package := false
 endif
 ifeq ($(TARGET_FORCE_OTA_PACKAGE),true)
 build_ota_package := true
 endif
 
-ifeq ($(build_ota_package),true)
+ifeq ($(build_otatools_package),true)
 OTATOOLS :=  $(HOST_OUT_EXECUTABLES)/minigzip \
   $(HOST_OUT_EXECUTABLES)/aapt \
   $(HOST_OUT_EXECUTABLES)/adb \
@@ -2529,7 +2669,7 @@ $(BUILT_OTATOOLS_PACKAGE): $(OTATOOLS) $(OTATOOLS_DEPS) $(OTATOOLS_RELEASETOOLS)
 .PHONY: otatools-package
 otatools-package: $(BUILT_OTATOOLS_PACKAGE)
 
-endif # build_ota_package
+endif # build_otatools_package
 
 # -----------------------------------------------------------------
 # A zip of the directories that map to the target filesystem.
@@ -2618,6 +2758,7 @@ endef
 # Depending on the various images guarantees that the underlying
 # directories are up-to-date.
 $(BUILT_TARGET_FILES_PACKAGE): \
+		$(INSTALLED_RAMDISK_TARGET) \
 		$(INSTALLED_BOOTIMAGE_TARGET) \
 		$(INSTALLED_RADIOIMAGE_TARGET) \
 		$(INSTALLED_RECOVERYIMAGE_TARGET) \
@@ -2896,14 +3037,6 @@ ifeq ($(BREAKPAD_GENERATE_SYMBOLS),true)
 	$(hide) $(ACP) -r $(TARGET_OUT_BREAKPAD) $(zip_root)/BREAKPAD
 endif
 	$(hide) echo "ota_override_device=$(OTA_SCRIPT_OVERRIDE_DEVICE)" >> $(zip_root)/META/misc_info.txt
-# BOARD_BUILD_DISABLED_VBMETAIMAGE is used to build a special vbmeta.img
-# that disables AVB verification. The content is fixed and we can just copy
-# it to $(zip_root)/IMAGES without passing some info into misc_info.txt for
-# regeneration.
-ifeq (true,$(BOARD_BUILD_DISABLED_VBMETAIMAGE))
-	$(hide) mkdir -p $(zip_root)/IMAGES
-	$(hide) cp $(INSTALLED_VBMETAIMAGE_TARGET) $(zip_root)/IMAGES/
-endif
 ifdef BOARD_PREBUILT_VENDORIMAGE
 	$(hide) mkdir -p $(zip_root)/IMAGES
 	$(hide) cp $(INSTALLED_VENDORIMAGE_TARGET) $(zip_root)/IMAGES/
@@ -3082,6 +3215,7 @@ SYMBOLS_ZIP := $(PRODUCT_OUT)/$(name).zip
 # For apps_only build we'll establish the dependency later in build/make/core/main.mk.
 ifndef TARGET_BUILD_APPS
 $(SYMBOLS_ZIP): $(INSTALLED_SYSTEMIMAGE) \
+		$(INSTALLED_RAMDISK_TARGET) \
 		$(INSTALLED_BOOTIMAGE_TARGET) \
 		$(INSTALLED_USERDATAIMAGE_TARGET) \
 		$(INSTALLED_VENDORIMAGE_TARGET) \
@@ -3106,6 +3240,7 @@ name := $(name)-coverage-$(FILE_NAME_TAG)
 COVERAGE_ZIP := $(PRODUCT_OUT)/$(name).zip
 ifndef TARGET_BUILD_APPS
 $(COVERAGE_ZIP): $(INSTALLED_SYSTEMIMAGE) \
+		$(INSTALLED_RAMDISK_TARGET) \
 		$(INSTALLED_BOOTIMAGE_TARGET) \
 		$(INSTALLED_USERDATAIMAGE_TARGET) \
 		$(INSTALLED_VENDORIMAGE_TARGET) \
@@ -3194,26 +3329,26 @@ ifeq ($(BUILD_QEMU_IMAGES),true)
 INSTALLED_QEMU_SYSTEMIMAGE := $(PRODUCT_OUT)/system-qemu.img
 MK_QEMU_IMAGE_SH := device/generic/goldfish/tools/mk_qemu_image.sh
 SGDISK_HOST := $(HOST_OUT_EXECUTABLES)/sgdisk
-$(INSTALLED_QEMU_SYSTEMIMAGE): $(INSTALLED_SYSTEMIMAGE) $(MK_QEMU_IMAGE_SH) $(SGDISK_HOST)
+$(INSTALLED_QEMU_SYSTEMIMAGE): $(INSTALLED_SYSTEMIMAGE) $(MK_QEMU_IMAGE_SH) $(SGDISK_HOST) $(SIMG2IMG)
 	@echo Create system-qemu.img
-	(export SGDISK=$(SGDISK_HOST); $(MK_QEMU_IMAGE_SH) ${PRODUCT_OUT}/system.img)
+	(export SGDISK=$(SGDISK_HOST) SIMG2IMG=$(SIMG2IMG); $(MK_QEMU_IMAGE_SH) ${PRODUCT_OUT}/system.img)
 
 systemimage: $(INSTALLED_QEMU_SYSTEMIMAGE)
 droidcore: $(INSTALLED_QEMU_SYSTEMIMAGE)
 ifeq ($(BOARD_USES_VENDORIMAGE),true)
 INSTALLED_QEMU_VENDORIMAGE := $(PRODUCT_OUT)/vendor-qemu.img
-$(INSTALLED_QEMU_VENDORIMAGE): $(INSTALLED_VENDORIMAGE_TARGET) $(MK_QEMU_IMAGE_SH) $(SGDISK_HOST)
+$(INSTALLED_QEMU_VENDORIMAGE): $(INSTALLED_VENDORIMAGE_TARGET) $(MK_QEMU_IMAGE_SH) $(SGDISK_HOST) $(SIMG2IMG)
 	@echo Create vendor-qemu.img
-	(export SGDISK=$(SGDISK_HOST); $(MK_QEMU_IMAGE_SH) ${PRODUCT_OUT}/vendor.img)
+	(export SGDISK=$(SGDISK_HOST) SIMG2IMG=$(SIMG2IMG); $(MK_QEMU_IMAGE_SH) ${PRODUCT_OUT}/vendor.img)
 
 vendorimage: $(INSTALLED_QEMU_VENDORIMAGE)
 droidcore: $(INSTALLED_QEMU_VENDORIMAGE)
 endif
 ifeq ($(BOARD_USES_PRODUCTIMAGE),true)
 INSTALLED_QEMU_PRODUCTIMAGE := $(PRODUCT_OUT)/product-qemu.img
-$(INSTALLED_QEMU_PRODUCTIMAGE): $(INSTALLED_PRODUCTIMAGE_TARGET) $(MK_QEMU_IMAGE_SH) $(SGDISK_HOST)
+$(INSTALLED_QEMU_PRODUCTIMAGE): $(INSTALLED_PRODUCTIMAGE_TARGET) $(MK_QEMU_IMAGE_SH) $(SGDISK_HOST) $(SIMG2IMG)
 	@echo Create product-qemu.img
-	(export SGDISK=$(SGDISK_HOST); $(MK_QEMU_IMAGE_SH) ${PRODUCT_OUT}/product.img)
+	(export SGDISK=$(SGDISK_HOST) SIMG2IMG=$(SIMG2IMG); $(MK_QEMU_IMAGE_SH) ${PRODUCT_OUT}/product.img)
 
 productimage: $(INSTALLED_QEMU_PRODUCTIMAGE)
 droidcore: $(INSTALLED_QEMU_PRODUCTIMAGE)
