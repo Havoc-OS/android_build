@@ -103,3 +103,9 @@ PRODUCT_LOCALES := \
         zh_HK \
         zh_TW \
         zu_ZA \
+
+# Havoc-OS specific languages
+PRODUCT_LOCALES += \
+        ast_ES \
+        gd_GB \
+        cy_GB
