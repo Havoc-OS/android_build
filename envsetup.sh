@@ -139,7 +139,6 @@ function check_product()
     fi
     if (echo -n $1 | grep -q -e "^havoc_") ; then
         HAVOC_BUILD=$(echo -n $1 | sed -e 's/^havoc_//g')
-        export BUILD_NUMBER=$( (date +%s%N ; echo $HAVOC_BUILD; hostname) | openssl sha1 | sed -e 's/.*=//g; s/ //g' | cut -c1-10 )
     else
         HAVOC_BUILD=
     fi
