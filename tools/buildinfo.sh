@@ -66,6 +66,6 @@ if [ -n "$BUILD_THUMBPRINT" ] ; then
   echo "ro.build.thumbprint=$BUILD_THUMBPRINT"
 fi
 
-echo "ro.havoc.device=$HAVOC_DEVICE"
-
 echo "# end build properties"
+
+source vendor/havoc/build/tools/buildinfo.sh;
