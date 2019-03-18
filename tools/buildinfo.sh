@@ -62,5 +62,6 @@ fi
 echo "ro.build.characteristics=$TARGET_AAPT_CHARACTERISTICS"
 
 echo "ro.havoc.device=$HAVOC_DEVICE"
+echo "ro.havoc.base.version=$HAVOC_BASE_VERSION"
 
 echo "# end build properties"

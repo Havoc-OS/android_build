@@ -18,5 +18,6 @@ echo "ro.product.vendor.model=$PRODUCT_MODEL"
 echo "ro.product.vendor.brand=$PRODUCT_BRAND"
 echo "ro.product.vendor.name=$PRODUCT_NAME"
 echo "ro.product.vendor.device=$TARGET_DEVICE"
+echo "ro.havoc.base.version=$HAVOC_BASE_VERSION"
 
 echo "# end build properties"

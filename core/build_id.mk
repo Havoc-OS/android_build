@@ -19,3 +19,4 @@
 # capitalized by convention.
 
 export BUILD_ID=PQ2A.190305.002
+export HAVOC_BASE_VERSION=2.3
