@@ -83,6 +83,11 @@ function build_build_var_cache()
 # to get build variables not listed in this script.
 function destroy_build_var_cache()
 {
+    # enable sh_word_split for zsh to split the strings in this for loop.
+    if [ -n "$ZSH_VERSION" ]; then
+      local word_split_enabled=`setopt | grep shwordsplit`
+      [ -z "$word_split_enabled" ] && setopt shwordsplit
+    fi
     unset BUILD_VAR_CACHE_READY
     local v
     for v in $cached_vars; do
@@ -93,6 +98,11 @@ function destroy_build_var_cache()
       unset abs_var_cache_$v
     done
     unset cached_abs_vars
+    # re-disable sh_word_split if we enabled it above
+    if [ -n "$ZSH_VERSION" ] && [ -z "$word_split_enabled" ]; then
+      unsetopt shwordsplit
+    fi
+    return 0
 }
 
 # Get the value of a build variable as an absolute path.
