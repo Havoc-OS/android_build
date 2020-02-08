@@ -253,3 +253,7 @@ org\.codeaurora\.internal.*
 ###################################################
 # IFAA Manager used for Alipay and/or WeChat payment
 org\.ifaa\.android\.manager.*
+
+###################################################
+# Touch HAL
+vendor.lineage.touch.*
