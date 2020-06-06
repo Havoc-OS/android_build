@@ -2551,6 +2551,17 @@ class DynamicPartitionsDifference(object):
     def comment(line):
       self._op_list.append("# %s" % line)
 
+    if self._build_without_vendor:
+      comment('System-only build, keep original vendor partition')
+      # When building without vendor, we do not want to override
+      # any partition already existing. In this case, we can only
+      # resize, but not remove / create / re-create any other
+      # partition.
+      for p, u in self._partition_updates.items():
+        comment('Resize partition %s to %s' % (p, u.tgt_size))
+        append('resize %s %s' % (p, u.tgt_size))
+      return
+
     if self._remove_all_before_apply:
       comment('Remove all existing dynamic partitions and groups before '
               'applying full OTA')
