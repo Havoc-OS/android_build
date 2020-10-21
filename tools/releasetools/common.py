@@ -1267,7 +1267,11 @@ def _BuildBootableImage(image_name, sourcedir, fs_config_file, info_dict=None,
     cmd.extend(shlex.split(args))
 
   if has_ramdisk:
-    cmd.extend(["--ramdisk", ramdisk_img.name])
+    fn = os.path.join(sourcedir,"recovery_ramdisk")
+    if os.access(fn, os.F_OK):
+      cmd.extend(["--ramdisk", fn])
+    else:
+      cmd.extend(["--ramdisk", ramdisk_img.name])
 
   img_unsigned = None
   if info_dict.get("vboot"):
