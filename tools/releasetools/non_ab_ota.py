@@ -117,12 +117,15 @@ def GetBlockDifferences(target_zip, source_zip, target_info, source_info,
 
 
 def CopyInstallTools(output_zip):
+  has_install_tools = False
   install_path = os.path.join(OPTIONS.input_tmp, "INSTALL")
   for root, subdirs, files in os.walk(install_path):
      for f in files:
       install_source = os.path.join(root, f)
       install_target = os.path.join("install", os.path.relpath(root, install_path), f)
       output_zip.write(install_source, install_target)
+      has_install_tools = True
+  return has_install_tools
 
 
 def WriteFullOTAPackage(input_zip, output_file):
@@ -223,10 +226,10 @@ else if get_stage("%(bcb_dev)s") == "3/3" then
 
   device_specific.FullOTA_InstallBegin()
 
-  CopyInstallTools(output_zip)
-  script.UnpackPackageDir("install", "/tmp/install")
-  script.SetPermissionsRecursive("/tmp/install", 0, 0, 0o755, 0o644, None, None)
-  script.SetPermissionsRecursive("/tmp/install/bin", 0, 0, 0o755, 0o755, None, None)
+  if CopyInstallTools(output_zip):
+    script.UnpackPackageDir("install", "/tmp/install")
+    script.SetPermissionsRecursive("/tmp/install", 0, 0, 0o755, 0o644, None, None)
+    script.SetPermissionsRecursive("/tmp/install/bin", 0, 0, 0o755, 0o755, None, None)
 
   if target_info.get("system_root_image") == "true":
     sysmount = "/"
