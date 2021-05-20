@@ -4986,14 +4986,10 @@ name := $(name)-ota-$(FILE_NAME_TAG)
 INTERNAL_OTA_PACKAGE_TARGET := $(PRODUCT_OUT)/$(name).zip
 INTERNAL_OTA_METADATA := $(PRODUCT_OUT)/ota_metadata
 
-ifeq ($(TARGET_BUILD_VARIANT),user)
-    $(INTERNAL_OTA_PACKAGE_TARGET): backuptool := false
-else
 ifneq ($(HAVOC_BUILD),)
-    $(INTERNAL_OTA_PACKAGE_TARGET): backuptool := true
+  $(INTERNAL_OTA_PACKAGE_TARGET): backuptool := true
 else
-    $(INTERNAL_OTA_PACKAGE_TARGET): backuptool := false
-endif
+  $(INTERNAL_OTA_PACKAGE_TARGET): backuptool := false
 endif
 
 $(INTERNAL_OTA_PACKAGE_TARGET): KEY_CERT_PAIR := $(DEFAULT_KEY_CERT_PAIR)
