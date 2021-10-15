@@ -70,7 +70,6 @@ PRODUCT_PACKAGES += \
     VpnDialogs \
     vr \
 
-
 PRODUCT_SYSTEM_SERVER_APPS += \
     FusedLocation \
     InputDevices \
@@ -81,9 +80,13 @@ PRODUCT_COPY_FILES += \
     frameworks/av/media/libeffects/data/audio_effects.conf:system/etc/audio_effects.conf
 
 PRODUCT_VENDOR_PROPERTIES += \
-    ro.carrier?=unknown \
+    ro.carrier?=unknown
+
+ifeq ($(LINEAGE_BUILD),)
+PRODUCT_VENDOR_PROPERTIES := \
     ro.config.notification_sound?=OnTheHunt.ogg \
     ro.config.alarm_alert?=Alarm_Classic.ogg
+endif
 
 # Traceur for debug only
 PRODUCT_PACKAGES_ENG += \
